@@ -1,8 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();
 
@@ -13,7 +12,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const cookieStore = await cookies();
+    const cookiesToApply: Array<{ name: string; value: string; options?: any }> = [];
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,16 +20,10 @@ export async function POST(request: Request) {
       {
         cookies: {
           getAll() {
-            return cookieStore.getAll();
+            return request.cookies.getAll();
           },
           setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              );
-            } catch (error) {
-              console.error("Cookie setting error:", error);
-            }
+            cookiesToSet.forEach((cookie) => cookiesToApply.push(cookie));
           },
         },
       }
@@ -42,22 +35,34 @@ export async function POST(request: Request) {
     });
 
     if (error) {
-      console.error("Supabase login error:", error);
+      console.error("Supabase login error:", error.message);
       return NextResponse.json(
         {
           error:
             error.message === "Invalid login credentials"
-              ? "Credenciales incorrectas"
+              ? "Credenciales incorrectas. Verifica correo y contraseña."
               : error.message,
         },
         { status: 401 }
       );
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       user: data.user,
     });
+
+    // Aplicar todas las cookies generadas por Supabase al response
+    cookiesToApply.forEach(({ name, value, options }) => {
+      response.cookies.set(name, value, {
+        ...options,
+        path: "/",
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+    });
+
+    return response;
   } catch (err: any) {
     console.error("Login API crash:", err);
     return NextResponse.json(
