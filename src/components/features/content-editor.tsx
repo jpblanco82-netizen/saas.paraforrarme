@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, Save, Mail, Sparkles, Share2, ExternalLink, Send } from "lucide-react";
+import { Copy, Check, Save, Mail, Sparkles, Share2, ExternalLink, Send, Zap, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { updateContentOutput } from "@/actions/content";
+import { publishDirectToLinkedIn } from "@/actions/linkedin";
 
 export function ContentEditor({ content }: { content: any }) {
   const [activeTab, setActiveTab] = useState<"linkedin" | "twitter" | "newsletter">("linkedin");
@@ -13,7 +14,12 @@ export function ContentEditor({ content }: { content: any }) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [publishedNotification, setPublishedNotification] = useState<string | null>(null);
+  const [isPublishingLinkedIn, setIsPublishingLinkedIn] = useState(false);
+  const [publishStatus, setPublishStatus] = useState<{
+    type: "success" | "error" | "info";
+    message: string;
+    url?: string;
+  } | null>(null);
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -21,17 +27,48 @@ export function ContentEditor({ content }: { content: any }) {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  const handlePublishToLinkedIn = () => {
+  // 1. Publicación 100% Automática vía API
+  const handleAutoPublishLinkedIn = async () => {
     if (!outputs.linkedin) return;
-    // 1. Copiar al portapapeles
+    setIsPublishingLinkedIn(true);
+    setPublishStatus(null);
+
+    try {
+      const res = await publishDirectToLinkedIn(content.id, outputs.linkedin);
+
+      if (res.success) {
+        setPublishStatus({
+          type: "success",
+          message: "¡Publicado automáticamente en tu perfil de LinkedIn!",
+          url: res.postUrl || "https://www.linkedin.com/feed/",
+        });
+      } else {
+        setPublishStatus({
+          type: "error",
+          message: res.message || "No se pudo completar la publicación automática",
+        });
+      }
+    } catch (e: any) {
+      setPublishStatus({
+        type: "error",
+        message: e.message || "Error al conectar con LinkedIn",
+      });
+    } finally {
+      setIsPublishingLinkedIn(false);
+    }
+  };
+
+  // 2. Abrir compositor nativo con texto en portapapeles
+  const handleOpenLinkedInComposer = () => {
+    if (!outputs.linkedin) return;
     navigator.clipboard.writeText(outputs.linkedin);
-    
-    // 2. Abrir compositor de LinkedIn en nueva pestaña
     window.open("https://www.linkedin.com/feed/?shareActive=true", "_blank");
 
-    // 3. Notificación al usuario
-    setPublishedNotification("¡Post copiado al portapapeles y compositor de LinkedIn abierto!");
-    setTimeout(() => setPublishedNotification(null), 5000);
+    setPublishStatus({
+      type: "info",
+      message: "¡Texto copiado al portapapeles! En LinkedIn pulsa Ctrl + V para pegar.",
+      url: "https://www.linkedin.com/feed/",
+    });
   };
 
   const handlePublishToTwitter = () => {
@@ -41,8 +78,11 @@ export function ContentEditor({ content }: { content: any }) {
     navigator.clipboard.writeText(outputs.twitter_thread.join("\n\n---\n\n"));
     window.open(`https://twitter.com/intent/tweet?text=${encoded}`, "_blank");
 
-    setPublishedNotification("¡Hilo copiado y ventana de X (Twitter) abierta!");
-    setTimeout(() => setPublishedNotification(null), 5000);
+    setPublishStatus({
+      type: "info",
+      message: "¡Hilo copiado! Ventana de X (Twitter) abierta.",
+      url: "https://twitter.com",
+    });
   };
 
   const handleSave = async () => {
@@ -81,21 +121,44 @@ export function ContentEditor({ content }: { content: any }) {
 
   return (
     <div className="space-y-6">
-      {/* Notificación de Publicación */}
-      {publishedNotification && (
-        <div className="flex items-center justify-between gap-3 rounded-lg bg-blue-950/80 p-4 text-sm text-blue-200 border border-blue-700 shadow-lg animate-in fade-in">
-          <div className="flex items-center gap-2">
-            <Check className="h-5 w-5 text-blue-400 shrink-0" />
-            <span>{publishedNotification} Solo pega (`Ctrl + V`) y dale a Publicar.</span>
+      {/* Banner de Estado de Publicación */}
+      {publishStatus && (
+        <div
+          className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl p-4 text-sm shadow-xl animate-in fade-in ${
+            publishStatus.type === "success"
+              ? "bg-emerald-950/90 text-emerald-200 border border-emerald-700"
+              : publishStatus.type === "error"
+              ? "bg-red-950/90 text-red-200 border border-red-700"
+              : "bg-blue-950/90 text-blue-200 border border-blue-700"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            {publishStatus.type === "success" && <Check className="h-5 w-5 text-emerald-400 shrink-0" />}
+            {publishStatus.type === "info" && <Zap className="h-5 w-5 text-blue-400 shrink-0" />}
+            <span>{publishStatus.message}</span>
           </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setPublishedNotification(null)}
-            className="h-7 text-xs text-blue-300 hover:text-white"
-          >
-            Entendido
-          </Button>
+
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            {publishStatus.url && (
+              <a
+                href={publishStatus.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs underline hover:text-white flex items-center gap-1 font-semibold"
+              >
+                <span>Ver en LinkedIn</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setPublishStatus(null)}
+              className="h-7 text-xs hover:bg-white/10"
+            >
+              Cerrar
+            </Button>
+          </div>
         </div>
       )}
 
@@ -162,23 +225,24 @@ export function ContentEditor({ content }: { content: any }) {
         </div>
       </div>
 
-      {/* Vista de LinkedIn */}
+      {/* Vista de LinkedIn con Publicador Automático */}
       {activeTab === "linkedin" && outputs.linkedin && (
-        <Card className="bg-slate-900 border-slate-800 text-slate-100">
-          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+        <Card className="bg-slate-900 border-slate-800 text-slate-100 shadow-xl">
+          <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-blue-950 p-2.5 text-[#0A66C2] font-bold text-lg border border-blue-900">
+              <div className="rounded-xl bg-[#0A66C2]/20 p-2.5 text-[#0A66C2] font-bold text-lg border border-[#0A66C2]/40">
                 in
               </div>
               <div>
                 <CardTitle className="text-base font-bold text-white">Publicación para LinkedIn</CardTitle>
                 <CardDescription className="text-slate-400">
-                  Estructura optimizada con ganchos de retención y debate profesional
+                  Formato optimizado con ganchos de retención y debate profesional
                 </CardDescription>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Botones de Acción de LinkedIn */}
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
               <Button
                 size="sm"
                 variant="outline"
@@ -188,7 +252,7 @@ export function ContentEditor({ content }: { content: any }) {
                 {copiedKey === "linkedin" ? (
                   <>
                     <Check className="h-4 w-4 text-emerald-400" />
-                    <span className="text-emerald-400">¡Copiado!</span>
+                    <span className="text-emerald-400">Copiado</span>
                   </>
                 ) : (
                   <>
@@ -198,24 +262,45 @@ export function ContentEditor({ content }: { content: any }) {
                 )}
               </Button>
 
-              {/* Botón de Publicación Directa en LinkedIn */}
               <Button
                 size="sm"
-                onClick={handlePublishToLinkedIn}
-                className="gap-2 bg-[#0A66C2] hover:bg-[#084e96] text-white font-semibold shadow-lg shadow-blue-900/30"
+                variant="outline"
+                onClick={handleOpenLinkedInComposer}
+                title="Abre la ventana de LinkedIn con el texto copiado para pegar con Ctrl + V"
+                className="gap-1.5 border-slate-700 bg-slate-950 hover:bg-slate-800 text-slate-200"
               >
-                <Send className="h-4 w-4" />
-                <span>Publicar en LinkedIn</span>
-                <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+                <ExternalLink className="h-4 w-4" />
+                <span>Abrir en LinkedIn</span>
+              </Button>
+
+              {/* Botón de Publicación 100% Automática */}
+              <Button
+                size="sm"
+                disabled={isPublishingLinkedIn}
+                onClick={handleAutoPublishLinkedIn}
+                className="gap-2 bg-[#0A66C2] hover:bg-[#084e96] text-white font-bold shadow-lg shadow-blue-900/40"
+              >
+                {isPublishingLinkedIn ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Publicando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    <span>Publicar Automáticamente</span>
+                  </>
+                )}
               </Button>
             </div>
           </CardHeader>
+
           <CardContent className="pt-4">
             <Textarea
               rows={14}
               value={outputs.linkedin}
               onChange={(e) => updateLinkedIn(e.target.value)}
-              className="font-sans text-sm leading-relaxed p-4 bg-slate-950 border-slate-800 text-slate-100 focus:border-blue-500"
+              className="font-sans text-sm leading-relaxed p-4 bg-slate-950 border-slate-800 text-slate-100 focus:border-blue-500 rounded-lg"
             />
           </CardContent>
         </Card>
