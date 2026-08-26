@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Copy, Check, Share2, Sparkles, Send, Edit3, Linkedin, Twitter, Mail } from "lucide-react";
+import { ArrowLeft, Copy, Check, Share2, Sparkles, Send, Edit3, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";

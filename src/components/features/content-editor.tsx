@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, Save, Linkedin, Twitter, Mail, Sparkles } from "lucide-react";
+import { Copy, Check, Save, Mail, Sparkles, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,7 +66,7 @@ export function ContentEditor({ content }: { content: any }) {
               onClick={() => setActiveTab("linkedin")}
               className="gap-2"
             >
-              <Linkedin className="h-4 w-4 text-[#0A66C2]" />
+              <span className="font-bold text-[#0A66C2]">in</span>
               <span>Post LinkedIn</span>
             </Button>
           )}
@@ -78,7 +78,7 @@ export function ContentEditor({ content }: { content: any }) {
               onClick={() => setActiveTab("twitter")}
               className="gap-2"
             >
-              <Twitter className="h-4 w-4 text-[#1DA1F2]" />
+              <span className="font-bold">𝕏</span>
               <span>Hilo de X (Twitter)</span>
             </Button>
           )}
@@ -122,8 +122,8 @@ export function ContentEditor({ content }: { content: any }) {
         <Card className="border-slate-200 dark:border-slate-800">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-blue-50 p-2 text-[#0A66C2] dark:bg-blue-950">
-                <Linkedin className="h-5 w-5" />
+              <div className="rounded-lg bg-blue-50 p-2 text-[#0A66C2] dark:bg-blue-950 font-bold">
+                in
               </div>
               <div>
                 <CardTitle className="text-base">Publicación para LinkedIn</CardTitle>

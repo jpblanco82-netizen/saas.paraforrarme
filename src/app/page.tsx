@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles, ArrowRight, Check, Zap, Shield, Clock, TrendingUp, Linkedin, Twitter, Mail, Award } from "lucide-react";
+import { Sparkles, ArrowRight, Check, Zap, Shield, Clock, TrendingUp, Mail, Share2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -94,8 +94,8 @@ export default function LandingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card className="bg-slate-900 border-slate-800 text-slate-100 p-6 space-y-4">
-                <div className="h-10 w-10 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center">
-                  <Linkedin className="h-5 w-5" />
+                <div className="h-10 w-10 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold">
+                  in
                 </div>
                 <h3 className="text-xl font-bold text-white">Post de LinkedIn Virales</h3>
                 <p className="text-slate-400 text-sm leading-relaxed">
@@ -104,8 +104,8 @@ export default function LandingPage() {
               </Card>
 
               <Card className="bg-slate-900 border-slate-800 text-slate-100 p-6 space-y-4">
-                <div className="h-10 w-10 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center">
-                  <Twitter className="h-5 w-5" />
+                <div className="h-10 w-10 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold">
+                  𝕏
                 </div>
                 <h3 className="text-xl font-bold text-white">Hilos de X (Twitter)</h3>
                 <p className="text-slate-400 text-sm leading-relaxed">
