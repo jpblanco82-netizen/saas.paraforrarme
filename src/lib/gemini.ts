@@ -1,5 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
-
 const apiKey = process.env.GEMINI_API_KEY || "";
 
 export interface ContentGenerationInput {
@@ -63,25 +61,46 @@ Devuelve EXCLUSIVAMENTE un JSON válido con la siguiente estructura (sin formato
 `;
 
   try {
-    if (!apiKey || apiKey.startsWith("placeholder")) {
+    if (!apiKey || apiKey.startsWith("placeholder") || apiKey.length < 10) {
       // Fallback inteligente para entorno de desarrollo / demo sin credenciales
       return getMockGeneratedContent(input);
     }
 
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-      },
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: prompt }],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+          },
+        }),
+      }
+    );
 
-    const responseText = response.text || "{}";
-    return JSON.parse(responseText) as GeneratedContentOutput;
+    if (!response.ok) {
+      console.warn("Gemini API non-200 response, using fallback:", response.statusText);
+      return getMockGeneratedContent(input);
+    }
+
+    const data = await response.json();
+    const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!candidateText) {
+      return getMockGeneratedContent(input);
+    }
+
+    return JSON.parse(candidateText) as GeneratedContentOutput;
   } catch (error) {
-    console.error("Error generating content with Gemini:", error);
-    // En caso de fallo de red o cuota, devolver una respuesta estructurada
+    console.error("Error generating content with Gemini REST API:", error);
     return getMockGeneratedContent(input);
   }
 }
