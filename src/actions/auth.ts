@@ -9,6 +9,35 @@ const emailSchema = z.object({
   email: z.string().email("Por favor ingresa un correo electrónico válido"),
 });
 
+const loginPasswordSchema = z.object({
+  email: z.string().email("Por favor ingresa un correo electrónico válido"),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+});
+
+export async function signInWithPassword(formData: FormData) {
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+
+  const validation = loginPasswordSchema.safeParse({ email, password });
+  if (!validation.success) {
+    return { error: validation.error.issues[0].message };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    return { error: error.message === "Invalid login credentials" ? "Credenciales incorrectas" : error.message };
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/dashboard");
+}
+
 export async function signInWithMagicLink(formData: FormData) {
   const email = formData.get("email") as string;
   const validation = emailSchema.safeParse({ email });
