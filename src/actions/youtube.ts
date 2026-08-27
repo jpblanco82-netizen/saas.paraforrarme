@@ -7,6 +7,55 @@ import { DUMMY_VIDEO_BASE64 } from "@/lib/dummy-video";
 // Inicializa Gemini para la generación de la miniatura
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
+async function getValidAccessToken(user: any, supabase: any) {
+  let accessToken = user.user_metadata?.youtube_access_token;
+  const refreshToken = user.user_metadata?.youtube_refresh_token;
+  const expiry = user.user_metadata?.youtube_token_expiry;
+
+  const isExpired = expiry ? new Date(expiry).getTime() < Date.now() + 60000 : false;
+
+  // Si está expirado o no hay access_token pero hay refresh_token, lo refrescamos automáticamente
+  if ((!accessToken || isExpired) && refreshToken) {
+    console.log("Token de YouTube expirado o ausente. Refrescando con refresh_token...");
+    try {
+      const clientId = process.env.YOUTUBE_CLIENT_ID;
+      const clientSecret = process.env.YOUTUBE_CLIENT_SECRET;
+
+      const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId!,
+          client_secret: clientSecret!,
+          refresh_token: refreshToken,
+          grant_type: "refresh_token",
+        }),
+      });
+
+      const refreshData = await refreshResponse.json();
+      if (refreshData.access_token) {
+        accessToken = refreshData.access_token;
+        const expiryDate = new Date();
+        expiryDate.setSeconds(expiryDate.getSeconds() + (refreshData.expires_in || 3600));
+
+        await supabase.auth.updateUser({
+          data: {
+            youtube_access_token: accessToken,
+            youtube_token_expiry: expiryDate.toISOString(),
+          },
+        });
+        console.log("Token de YouTube refrescado exitosamente.");
+      } else {
+        console.error("Error al refrescar token:", refreshData);
+      }
+    } catch (err) {
+      console.error("Excepción refrescando token de YouTube:", err);
+    }
+  }
+
+  return accessToken;
+}
+
 export async function createYouTubeDraft(
   title: string,
   description: string,
@@ -19,9 +68,9 @@ export async function createYouTubeDraft(
 
     if (!user) throw new Error("Debes iniciar sesión para realizar esta acción");
 
-    const accessToken = user.user_metadata?.youtube_access_token;
+    const accessToken = await getValidAccessToken(user, supabase);
     if (!accessToken) {
-      throw new Error("No tienes tu cuenta de YouTube conectada. Ve a /api/auth/youtube para vincularla.");
+      throw new Error("No tienes tu cuenta de YouTube conectada o tus credenciales han caducado. Entra en /api/auth/youtube para conectar tu canal.");
     }
 
     // 1. Generar la miniatura usando Gemini (modelo experimental Banana)
@@ -82,6 +131,12 @@ export async function createYouTubeDraft(
     if (!initResponse.ok) {
       const err = await initResponse.text();
       console.error("Error iniciando subida:", err);
+      
+      // Si el error es de autenticación, orientar al usuario
+      if (initResponse.status === 401) {
+        throw new Error("Tus permisos de YouTube han caducado. Vuelve a entrar en https://saas-paraforrarme.vercel.app/api/auth/youtube para reconectar.");
+      }
+      
       throw new Error("No se pudo iniciar la subida a YouTube: " + err);
     }
 
