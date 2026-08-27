@@ -21,16 +21,21 @@ export function ContentGenerator({
   const [title, setTitle] = useState("");
   const [sourceContent, setSourceContent] = useState("");
   const [selectedPreviousId, setSelectedPreviousId] = useState<string>("");
-  const [selectedChannels, setSelectedChannels] = useState<string[]>(["linkedin", "twitter", "newsletter", "youtube"]);
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(["linkedin", "twitter", "newsletter", "youtube", "podcast"]);
   const [selectedTone, setSelectedTone] = useState<string>("professional");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSourceTypeChange = (type: "text" | "url" | "video" | "podcast") => {
     setSourceType(type);
-    if (type === "video" && !selectedChannels.includes("youtube")) {
-      setSelectedChannels([...selectedChannels, "youtube"]);
+    let newChannels = [...selectedChannels];
+    if (type === "video" && !newChannels.includes("youtube")) {
+      newChannels.push("youtube");
     }
+    if (type === "podcast" && !newChannels.includes("podcast")) {
+      newChannels.push("podcast");
+    }
+    setSelectedChannels(newChannels);
   };
 
   const handleSelectPreviousContent = (id: string) => {
