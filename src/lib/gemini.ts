@@ -25,6 +25,11 @@ export interface YouTubeVideoOutput {
   full_script_teleprompter: string;
 }
 
+export interface PodcastDialogueLine {
+  speaker: "Host 1" | "Host 2";
+  text: string;
+}
+
 export interface GeneratedContentOutput {
   linkedin?: string;
   twitter_thread?: string[];
@@ -34,6 +39,7 @@ export interface GeneratedContentOutput {
     body: string;
   };
   youtube_video?: YouTubeVideoOutput;
+  podcast_script?: PodcastDialogueLine[];
   key_takeaways?: string[];
 }
 
@@ -107,8 +113,9 @@ CRITERIOS ESTRICTOS DE GENERACIÓN:
 3. Si el canal es "linkedin", crea un post magnético con gancho, desarrollo en 3 puntos y llamada a la acción.
 4. Si el canal es "twitter", genera un hilo de 4 a 6 tweets bien estructurados.
 5. Si el canal es "newsletter", escribe un correo completo con subject, preview y cuerpo con subtítulos.
+6. Si el canal es "podcast", genera un diálogo dinámico y natural entre dos presentadores (Host 1 y Host 2) discutiendo el contenido fuente, con interrupciones y preguntas estilo NotebookLM.
 
-Devuelve ÚNICAMENTE un objeto JSON válido con este formato:
+Devuelve ÚNICAMENTE un objeto JSON válido con este formato (incluye solo los canales solicitados):
 {
   "linkedin": "texto del post...",
   "twitter_thread": [
@@ -136,6 +143,16 @@ Devuelve ÚNICAMENTE un objeto JSON válido con este formato:
       }
     ]
   },
+  "podcast_script": [
+    {
+      "speaker": "Host 1",
+      "text": "Bienvenidos al podcast..."
+    },
+    {
+      "speaker": "Host 2",
+      "text": "Exacto, hoy analizaremos..."
+    }
+  ],
   "key_takeaways": [
     "...",
     "..."
@@ -230,6 +247,12 @@ function generateDynamicFallback(input: ContentGenerationInput, text: string): G
         },
       ],
     },
+    podcast_script: [
+      { speaker: "Host 1", text: `¡Hola a todos! Hoy traemos un tema súper interesante: ${title}. ¿Tú qué opinas?` },
+      { speaker: "Host 2", text: `Totalmente de acuerdo. La clave aquí es que ${p1}` },
+      { speaker: "Host 1", text: `Exacto, y de hecho mucha gente olvida que ${p2}` },
+      { speaker: "Host 2", text: `Así es. Para terminar, creo que la conclusión es que ${p3}` }
+    ],
     key_takeaways: [
       p1.slice(0, 80),
       p2.slice(0, 80),

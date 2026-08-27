@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, Save, Mail, Sparkles, Share2, ExternalLink, Send, Zap, Loader2, Video, Play, Film, Clock, Tag, Eye } from "lucide-react";
+import { Copy, Check, Save, Mail, Sparkles, Share2, ExternalLink, Send, Zap, Loader2, Video, Play, Film, Clock, Tag, Eye, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -324,6 +324,18 @@ export function ContentEditor({ content }: { content: any }) {
             >
               <Video className="h-4 w-4 text-red-500" />
               <span>YouTube & Video</span>
+            </Button>
+          )}
+
+          {outputs.podcast_script && (
+            <Button
+              type="button"
+              variant={activeTab === "podcast" ? "default" : "outline"}
+              onClick={() => setActiveTab("podcast" as any)}
+              className={`gap-2 ${activeTab === "podcast" ? "bg-purple-600 hover:bg-purple-700 text-white" : "border-purple-900/50 text-purple-400 hover:bg-purple-950/40"}`}
+            >
+              <Radio className="h-4 w-4 text-purple-500" />
+              <span>Podcast Audio</span>
             </Button>
           )}
         </div>
@@ -869,6 +881,55 @@ export function ContentEditor({ content }: { content: any }) {
             </CardContent>
           </Card>
         </div>
+      )}
+      {/* Vista de Podcast */}
+      {activeTab === "podcast" && outputs.podcast_script && (
+        <Card className="bg-slate-900 border-purple-950/80 text-slate-100 shadow-xl">
+          <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-800 bg-gradient-to-r from-purple-950/30 to-slate-900">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-purple-600/20 p-2.5 text-purple-500 font-bold border border-purple-600/40">
+                <Radio className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-bold text-white">Guion de Podcast (2 Voces)</CardTitle>
+                <CardDescription className="text-slate-400">
+                  Formato diálogo interactivo (estilo NotebookLM).
+                </CardDescription>
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const text = outputs.podcast_script.map((l: any) => `${l.speaker}: ${l.text}`).join("\n\n");
+                handleCopy(text, "podcast_all");
+              }}
+              className="gap-1.5 border-slate-700 bg-slate-950 hover:bg-slate-800 text-slate-200"
+            >
+              {copiedKey === "podcast_all" ? "¡Copiado!" : "Copiar Guion"}
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-6">
+            {outputs.podcast_script.map((line: any, idx: number) => (
+              <div key={idx} className={`p-4 rounded-xl border ${line.speaker === "Host 1" ? "bg-blue-950/30 border-blue-900/50 ml-0 mr-12" : "bg-emerald-950/30 border-emerald-900/50 ml-12 mr-0"}`}>
+                <div className={`text-xs font-bold mb-2 ${line.speaker === "Host 1" ? "text-blue-400" : "text-emerald-400"}`}>
+                  {line.speaker}
+                </div>
+                <Textarea
+                  value={line.text}
+                  onChange={(e) => {
+                    const newScript = [...outputs.podcast_script];
+                    newScript[idx].text = e.target.value;
+                    setOutputs({ ...outputs, podcast_script: newScript });
+                  }}
+                  className="bg-transparent border-none p-0 focus-visible:ring-0 text-sm resize-none"
+                  rows={2}
+                />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

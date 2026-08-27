@@ -277,6 +277,7 @@ export function ContentGenerator({
                   { id: "twitter", label: "Hilo de X (Twitter)" },
                   { id: "newsletter", label: "Newsletter Semanal" },
                   { id: "youtube", label: "Video YouTube & Shorts" },
+                  { id: "podcast", label: "Podcast (Audio a 2 voces)" },
                 ].map((channel) => {
                   const isChecked = selectedChannels.includes(channel.id);
                   return (
