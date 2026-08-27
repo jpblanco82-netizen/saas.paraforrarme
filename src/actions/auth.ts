@@ -101,7 +101,7 @@ export async function completeOnboarding(formData: FormData) {
 
   const validation = onboardingSchema.safeParse({ fullName, businessType });
   if (!validation.success) {
-    return { error: validation.error.issues[0].message };
+    return;
   }
 
   const supabase = await createClient();
@@ -111,7 +111,7 @@ export async function completeOnboarding(formData: FormData) {
     redirect("/login");
   }
 
-  const { error } = await supabase
+  await supabase
     .from("profiles")
     .update({
       full_name: fullName,
@@ -119,10 +119,6 @@ export async function completeOnboarding(formData: FormData) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", user.id);
-
-  if (error) {
-    return { error: "No se pudo completar el onboarding" };
-  }
 
   redirect("/dashboard");
 }
