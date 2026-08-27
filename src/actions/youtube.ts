@@ -131,13 +131,7 @@ export async function createYouTubeDraft(
     if (!initResponse.ok) {
       const err = await initResponse.text();
       console.error("Error iniciando subida:", err);
-      
-      // Si el error es de autenticación, orientar al usuario
-      if (initResponse.status === 401) {
-        throw new Error("Tus permisos de YouTube han caducado. Vuelve a entrar en https://saas-paraforrarme.vercel.app/api/auth/youtube para reconectar.");
-      }
-      
-      throw new Error("No se pudo iniciar la subida a YouTube: " + err);
+      throw new Error(`Google API Error (${initResponse.status}): ${err}`);
     }
 
     const uploadUrl = initResponse.headers.get("Location");
