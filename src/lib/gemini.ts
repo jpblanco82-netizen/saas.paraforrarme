@@ -102,8 +102,8 @@ CRITERIOS ESTRICTOS DE GENERACIÓN:
    - description: Resumen completo para YouTube, timestamps y hashtags.
    - tags: 6 a 10 etiquetas SEO relevantes al tema.
    - thumbnail_prompt: Prompt fotográfico en inglés para la miniatura perfecta sobre el tema.
-   - full_script_teleprompter: Guion narrativo continuo para leer en teleprompter.
-   - script_scenes: 4 a 6 escenas técnicas (scene_number, visual_cue, voiceover, duration_sec).
+   - full_script_teleprompter: Guion narrativo continuo para leer en teleprompter (aproximadamente 65-75 palabras para que dure exactamente 30 segundos hablado a ritmo normal).
+   - script_scenes: 3 a 5 escenas técnicas (scene_number, visual_cue, voiceover, duration_sec). La suma de la duración de todas las escenas DEBE SER de aproximadamente 30 segundos (formato Short/Reel).
 3. Si el canal es "linkedin", crea un post magnético con gancho, desarrollo en 3 puntos y llamada a la acción.
 4. Si el canal es "twitter", genera un hilo de 4 a 6 tweets bien estructurados.
 5. Si el canal es "newsletter", escribe un correo completo con subject, preview y cuerpo con subtítulos.
