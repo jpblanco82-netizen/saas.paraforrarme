@@ -2,8 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import fs from "fs";
-import path from "path";
+import { DUMMY_VIDEO_BASE64 } from "@/lib/dummy-video";
 
 // Inicializa Gemini para la generación de la miniatura
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -46,22 +45,8 @@ export async function createYouTubeDraft(
       console.error("Error generando miniatura:", imgError);
     }
 
-    // 2. Preparar el video de prueba compatible tanto con local como con Vercel Serverless
-    let videoBuffer: Buffer;
-    const localVideoPath = path.join(process.cwd(), "public", "dummy_video.mp4");
-
-    if (fs.existsSync(localVideoPath)) {
-      videoBuffer = fs.readFileSync(localVideoPath);
-    } else {
-      console.log("Descargando video base de CDN para entorno Serverless...");
-      const videoRes = await fetch("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4");
-      if (!videoRes.ok) {
-        throw new Error("No se pudo obtener el video base para la subida");
-      }
-      const arrayBuf = await videoRes.arrayBuffer();
-      videoBuffer = Buffer.from(arrayBuf);
-    }
-
+    // 2. Preparar el buffer del video base 100% en memoria
+    const videoBuffer = Buffer.from(DUMMY_VIDEO_BASE64, "base64");
     const fileSize = videoBuffer.length;
 
     // 3. Subir el video a YouTube (Sesión Resumible)
