@@ -69,6 +69,7 @@ export async function createAndTransformContent(formData: FormData) {
   try {
     // 4. Llamar al motor de IA
     const generatedOutputs = await generateSocialContent({
+      title,
       sourceContent,
       sourceType,
       tone,
