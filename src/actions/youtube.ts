@@ -18,10 +18,12 @@ export async function createYouTubeDraft(
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) throw new Error("No autenticado");
+    if (!user) throw new Error("Debes iniciar sesión para realizar esta acción");
 
     const accessToken = user.user_metadata?.youtube_access_token;
-    if (!accessToken) throw new Error("No hay cuenta de YouTube conectada");
+    if (!accessToken) {
+      throw new Error("No tienes tu cuenta de YouTube conectada. Ve a /api/auth/youtube para vincularla.");
+    }
 
     // 1. Generar la miniatura usando Gemini (modelo experimental Banana)
     console.log("Generando miniatura con IA para YouTube...");
@@ -33,7 +35,6 @@ export async function createYouTubeDraft(
       const result = await imageModel.generateContent(prompt);
       const response = await result.response;
       
-      // El modelo devuelve la imagen codificada en base64 en parts[0].inlineData.data
       const parts = response.candidates?.[0]?.content?.parts;
       if (parts && parts.length > 0 && parts[0].inlineData) {
         base64Image = parts[0].inlineData.data;
@@ -45,23 +46,32 @@ export async function createYouTubeDraft(
       console.error("Error generando miniatura:", imgError);
     }
 
-    // 2. Preparar el video de prueba (dummy_video.mp4)
-    const videoPath = path.join(process.cwd(), "public", "dummy_video.mp4");
-    if (!fs.existsSync(videoPath)) {
-      throw new Error("El archivo de video base no se encontró en public/dummy_video.mp4");
+    // 2. Preparar el video de prueba compatible tanto con local como con Vercel Serverless
+    let videoBuffer: Buffer;
+    const localVideoPath = path.join(process.cwd(), "public", "dummy_video.mp4");
+
+    if (fs.existsSync(localVideoPath)) {
+      videoBuffer = fs.readFileSync(localVideoPath);
+    } else {
+      console.log("Descargando video base de CDN para entorno Serverless...");
+      const videoRes = await fetch("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4");
+      if (!videoRes.ok) {
+        throw new Error("No se pudo obtener el video base para la subida");
+      }
+      const arrayBuf = await videoRes.arrayBuffer();
+      videoBuffer = Buffer.from(arrayBuf);
     }
-    const videoStat = fs.statSync(videoPath);
-    const fileSize = videoStat.size;
-    const videoBuffer = fs.readFileSync(videoPath);
+
+    const fileSize = videoBuffer.length;
 
     // 3. Subir el video a YouTube (Sesión Resumible)
     console.log("Iniciando subida de video a YouTube...");
     const metadata = {
       snippet: {
-        title: title.substring(0, 100), // Max 100 chars
+        title: title.substring(0, 100),
         description: description,
-        tags: tags.slice(0, 15), // Max 15 tags approx
-        categoryId: "22", // People & Blogs
+        tags: tags.slice(0, 15),
+        categoryId: "22",
       },
       status: {
         privacyStatus: "private", // Siempre privado como borrador
@@ -116,25 +126,29 @@ export async function createYouTubeDraft(
 
     // 4. Subir la miniatura generada si existe
     if (videoId && base64Image) {
-      console.log("Subiendo miniatura al video...");
-      const imageBuffer = Buffer.from(base64Image, "base64");
-      
-      const thumbResponse = await fetch(
-        `https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=${videoId}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "image/jpeg",
-          },
-          body: imageBuffer,
-        }
-      );
+      try {
+        console.log("Subiendo miniatura al video...");
+        const imageBuffer = Buffer.from(base64Image, "base64");
+        
+        const thumbResponse = await fetch(
+          `https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=${videoId}`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "image/jpeg",
+            },
+            body: imageBuffer,
+          }
+        );
 
-      if (!thumbResponse.ok) {
-        console.warn("No se pudo subir la miniatura. Error:", await thumbResponse.text());
-      } else {
-        console.log("Miniatura subida exitosamente.");
+        if (!thumbResponse.ok) {
+          console.warn("No se pudo subir la miniatura. Error:", await thumbResponse.text());
+        } else {
+          console.log("Miniatura subida exitosamente.");
+        }
+      } catch (thumbErr) {
+        console.error("Error subiendo miniatura:", thumbErr);
       }
     }
 
