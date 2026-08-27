@@ -129,3 +129,25 @@ export async function updateContentOutput(contentId: string, updatedOutputs: any
   revalidatePath(`/dashboard/content/${contentId}`);
   return { success: true };
 }
+
+export async function deleteContent(contentId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "No autorizado" };
+  }
+
+  const { error } = await supabase
+    .from("contents")
+    .delete()
+    .eq("id", contentId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    return { error: "No se pudo borrar el contenido" };
+  }
+
+  revalidatePath("/dashboard");
+  return { success: true };
+}

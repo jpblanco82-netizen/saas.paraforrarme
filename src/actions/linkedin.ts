@@ -32,11 +32,11 @@ export async function publishDirectToLinkedIn(
   }
 
   try {
-    const linkedinToken = process.env.LINKEDIN_ACCESS_TOKEN;
-    const linkedinPersonUrn = process.env.LINKEDIN_PERSON_URN; // e.g., urn:li:person:XXXX
+    const linkedinToken = user.user_metadata?.linkedin_access_token;
+    const linkedinPersonUrn = user.user_metadata?.linkedin_person_urn;
 
-    // Si hay credenciales de LinkedIn API configuradas en el entorno:
-    if (linkedinToken && linkedinPersonUrn && !linkedinToken.startsWith("placeholder")) {
+    // Si hay credenciales de LinkedIn API configuradas en el usuario:
+    if (linkedinToken && linkedinPersonUrn) {
       const response = await fetch("https://api.linkedin.com/v2/ugcPosts", {
         method: "POST",
         headers: {
@@ -90,26 +90,11 @@ export async function publishDirectToLinkedIn(
       };
     }
 
-    // Modo Autónomo Inteligente / Demo Directa
-    // Registra la publicación con éxito y genera el registro en la base de datos
-    await new Promise((res) => setTimeout(res, 1200)); // Simulación de latencia de red
-
-    await supabase
-      .from("contents")
-      .update({
-        status: "completed",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", contentId);
-
-    revalidatePath(`/dashboard/content/${contentId}`);
-    revalidatePath("/dashboard");
-
+    // Si no hay credenciales, pedir que se conecte
     return {
-      success: true,
-      message: "¡Publicación enviada exitosamente a LinkedIn!",
-      postId: `urn:li:share:${Date.now()}`,
-      postUrl: "https://www.linkedin.com/feed/",
+      success: false,
+      message: "No tienes tu cuenta de LinkedIn conectada. Por favor, conéctala primero.",
+      postUrl: "/api/auth/linkedin",
     };
   } catch (error: any) {
     console.error("LinkedIn publish crash:", error);

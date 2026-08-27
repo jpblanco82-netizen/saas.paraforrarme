@@ -2,20 +2,65 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, ArrowRight, CheckCircle2, FileText, Link as LinkIcon, Radio, Video, AlertCircle } from "lucide-react";
+import { Sparkles, ArrowRight, CheckCircle2, FileText, Link as LinkIcon, Radio, Video, AlertCircle, History, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { createAndTransformContent } from "@/actions/content";
 
-export function ContentGenerator({ isPaywallBlocked }: { isPaywallBlocked?: boolean }) {
+export function ContentGenerator({ 
+  isPaywallBlocked, 
+  previousContents = [] 
+}: { 
+  isPaywallBlocked?: boolean;
+  previousContents?: any[];
+}) {
   const router = useRouter();
   const [sourceType, setSourceType] = useState<"text" | "url" | "video" | "podcast">("text");
-  const [selectedChannels, setSelectedChannels] = useState<string[]>(["linkedin", "twitter", "newsletter"]);
+  const [title, setTitle] = useState("");
+  const [sourceContent, setSourceContent] = useState("");
+  const [selectedPreviousId, setSelectedPreviousId] = useState<string>("");
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(["linkedin", "twitter", "newsletter", "youtube"]);
   const [selectedTone, setSelectedTone] = useState<string>("professional");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleSourceTypeChange = (type: "text" | "url" | "video" | "podcast") => {
+    setSourceType(type);
+    if (type === "video" && !selectedChannels.includes("youtube")) {
+      setSelectedChannels([...selectedChannels, "youtube"]);
+    }
+  };
+
+  const handleSelectPreviousContent = (id: string) => {
+    setSelectedPreviousId(id);
+    if (!id) {
+      setTitle("");
+      setSourceContent("");
+      return;
+    }
+
+    const found = previousContents.find((c) => c.id === id);
+    if (found) {
+      setTitle(found.title || "");
+      setSourceContent(found.source_content || "");
+      if (found.source_type) setSourceType(found.source_type);
+      if (found.tone) setSelectedTone(found.tone);
+      if (found.target_channels && found.target_channels.length > 0) {
+        setSelectedChannels(found.target_channels);
+      }
+    }
+  };
+
+  const handleResetForm = () => {
+    setSelectedPreviousId("");
+    setTitle("");
+    setSourceContent("");
+    setSourceType("text");
+    setSelectedTone("professional");
+    setSelectedChannels(["linkedin", "twitter", "newsletter"]);
+  };
 
   const toggleChannel = (channel: string) => {
     if (selectedChannels.includes(channel)) {
@@ -37,7 +82,9 @@ export function ContentGenerator({ isPaywallBlocked }: { isPaywallBlocked?: bool
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    const formData = new FormData(e.currentTarget);
+    const formData = new FormData();
+    formData.set("title", title);
+    formData.set("sourceContent", sourceContent);
     formData.set("sourceType", sourceType);
     formData.set("tone", selectedTone);
     selectedChannels.forEach((channel) => formData.append("targetChannels", channel));
@@ -82,6 +129,54 @@ export function ContentGenerator({ isPaywallBlocked }: { isPaywallBlocked?: bool
             </div>
           )}
 
+          {/* Selector de Contenido Previo para Reutilizar */}
+          {previousContents && previousContents.length > 0 && (
+            <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4 dark:border-blue-950 dark:bg-blue-950/20">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <History className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <div>
+                    <label htmlFor="previousContentSelect" className="text-xs font-bold uppercase tracking-wider text-blue-900 dark:text-blue-300">
+                      Reutilizar contenido ya creado
+                    </label>
+                    <p className="text-xs text-blue-700/80 dark:text-blue-400/80">
+                      Elige una pieza anterior para cargar su título y texto automáticamente
+                    </p>
+                  </div>
+                </div>
+
+                {selectedPreviousId && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleResetForm}
+                    className="h-7 px-2 text-xs text-blue-700 hover:text-blue-900 dark:text-blue-300 gap-1"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span>Empezar en blanco</span>
+                  </Button>
+                )}
+              </div>
+
+              <div className="mt-3">
+                <select
+                  id="previousContentSelect"
+                  value={selectedPreviousId}
+                  onChange={(e) => handleSelectPreviousContent(e.target.value)}
+                  className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-blue-900 dark:bg-slate-900 dark:text-slate-200 shadow-sm"
+                >
+                  <option value="">-- Selecciona un contenido de tu historial (opcional) --</option>
+                  {previousContents.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.title} ({new Date(item.created_at).toLocaleDateString()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           {/* Tipo de Fuente */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -100,7 +195,7 @@ export function ContentGenerator({ isPaywallBlocked }: { isPaywallBlocked?: bool
                   <button
                     key={type.id}
                     type="button"
-                    onClick={() => setSourceType(type.id as any)}
+                    onClick={() => handleSourceTypeChange(type.id as any)}
                     className={`flex items-center gap-2 rounded-lg border p-3 text-left text-sm font-medium transition-all ${
                       isSelected
                         ? "border-blue-600 bg-blue-50/50 text-blue-600 dark:border-blue-500 dark:bg-blue-950/30 dark:text-blue-400 font-semibold"
@@ -124,6 +219,8 @@ export function ContentGenerator({ isPaywallBlocked }: { isPaywallBlocked?: bool
               id="title"
               name="title"
               required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               placeholder="Ej: Guía definitiva para escalar un SaaS B2B en 2026"
             />
           </div>
@@ -131,17 +228,21 @@ export function ContentGenerator({ isPaywallBlocked }: { isPaywallBlocked?: bool
           {/* Contenido Fuente */}
           <div className="space-y-2">
             <label htmlFor="sourceContent" className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-              3. {sourceType === "url" ? "Enlace de la publicación" : "Pega tu contenido o transcripción aquí"}
+              3. {sourceType === "url" ? "Enlace de la publicación" : sourceType === "video" ? "Enlace del video de YouTube o guion del video" : "Pega tu contenido o transcripción aquí"}
             </label>
             <Textarea
               id="sourceContent"
               name="sourceContent"
               required
-              rows={sourceType === "url" ? 2 : 6}
+              value={sourceContent}
+              onChange={(e) => setSourceContent(e.target.value)}
+              rows={sourceType === "url" || sourceType === "video" ? 3 : 6}
               placeholder={
                 sourceType === "url"
                   ? "https://tuempresa.com/blog/como-escalar-ventas-b2b"
-                  : "Pega el texto de tu artículo, notas de episodio o guion del video..."
+                  : sourceType === "video"
+                  ? "https://www.youtube.com/watch?v=... o pega el guion / notas del video"
+                  : "Pega el texto de tu artículo, notas de episodio o transcripción..."
               }
             />
           </div>
@@ -175,6 +276,7 @@ export function ContentGenerator({ isPaywallBlocked }: { isPaywallBlocked?: bool
                   { id: "linkedin", label: "LinkedIn Post" },
                   { id: "twitter", label: "Hilo de X (Twitter)" },
                   { id: "newsletter", label: "Newsletter Semanal" },
+                  { id: "youtube", label: "Video YouTube & Shorts" },
                 ].map((channel) => {
                   const isChecked = selectedChannels.includes(channel.id);
                   return (

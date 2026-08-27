@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ROIWidget } from "@/components/features/roi-widget";
 import { checkPaywallStatus } from "@/lib/paywall";
 import { formatDate } from "@/lib/utils";
+import { DeleteButton } from "@/components/features/delete-button";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -149,12 +150,15 @@ export default async function DashboardPage() {
                         : content.status}
                     </Badge>
 
-                    <Link href={`/dashboard/content/${content.id}`}>
-                      <Button variant="outline" size="sm" className="gap-1">
-                        <span>Ver Piezas</span>
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      </Button>
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link href={`/dashboard/content/${content.id}`}>
+                        <Button variant="outline" size="sm" className="gap-1">
+                          <span>Ver Piezas</span>
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                        </Button>
+                      </Link>
+                      <DeleteButton contentId={content.id} />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
