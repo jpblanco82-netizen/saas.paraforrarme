@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { DUMMY_VIDEO_BASE64 } from "@/lib/dummy-video";
 
@@ -38,12 +38,25 @@ async function getValidAccessToken(user: any, supabase: any) {
         const expiryDate = new Date();
         expiryDate.setSeconds(expiryDate.getSeconds() + (refreshData.expires_in || 3600));
 
+        const updates = {
+          youtube_access_token: accessToken,
+          youtube_token_expiry: expiryDate.toISOString(),
+        };
+
         await supabase.auth.updateUser({
-          data: {
-            youtube_access_token: accessToken,
-            youtube_token_expiry: expiryDate.toISOString(),
-          },
+          data: updates,
         });
+
+        try {
+          const adminClient = await createAdminClient();
+          await adminClient.auth.admin.updateUserById(user.id, {
+            user_metadata: {
+              ...user.user_metadata,
+              ...updates,
+            },
+          });
+        } catch {}
+
         console.log("Token de YouTube refrescado exitosamente.");
       } else {
         console.error("Error al refrescar token:", refreshData);
@@ -68,9 +81,19 @@ export async function createYouTubeDraft(
 
     if (!user) throw new Error("Debes iniciar sesión para realizar esta acción");
 
-    const accessToken = await getValidAccessToken(user, supabase);
+    // Obtener datos frescos del usuario desde DB Admin para evitar desfases de cookies
+    let freshUser = user;
+    try {
+      const adminClient = await createAdminClient();
+      const { data: { user: dbUser } } = await adminClient.auth.admin.getUserById(user.id);
+      if (dbUser) freshUser = dbUser;
+    } catch (e) {
+      console.warn("No se pudo obtener usuario admin, usando sesión:", e);
+    }
+
+    const accessToken = await getValidAccessToken(freshUser, supabase);
     if (!accessToken) {
-      throw new Error("No tienes tu cuenta de YouTube conectada o tus credenciales han caducado. Entra en /api/auth/youtube para conectar tu canal.");
+      throw new Error("No tienes tu cuenta de YouTube conectada. Ve a https://saas-paraforrarme.vercel.app/api/auth/youtube para vincularla.");
     }
 
     // 1. Generar la miniatura usando Gemini (modelo experimental Banana)
@@ -151,7 +174,7 @@ export async function createYouTubeDraft(
     if (!uploadResponse.ok) {
       const err = await uploadResponse.text();
       console.error("Error subiendo bytes:", err);
-      throw new Error("Error al subir el video.");
+      throw new Error("Error al subir el video: " + err);
     }
 
     const videoData = await uploadResponse.json();

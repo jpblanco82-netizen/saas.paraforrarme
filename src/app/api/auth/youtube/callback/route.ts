@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -21,6 +21,7 @@ export async function GET(request: Request) {
 
   try {
     // 1. Intercambiar el código por Tokens
+    console.log("Intercambiando código de YouTube OAuth...");
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: {
@@ -45,9 +46,9 @@ export async function GET(request: Request) {
 
     // Calcular fecha de expiración
     const expiryDate = new Date();
-    expiryDate.setSeconds(expiryDate.getSeconds() + expires_in);
+    expiryDate.setSeconds(expiryDate.getSeconds() + (expires_in || 3600));
 
-    // 2. Guardar en los metadatos del usuario en Supabase
+    // 2. Guardar en los metadatos del usuario en Supabase (Sesión y Admin DB)
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -57,14 +58,28 @@ export async function GET(request: Request) {
         youtube_token_expiry: expiryDate.toISOString(),
       };
       
-      // Google a veces solo manda el refresh token la primera vez
       if (refresh_token) {
          updates.youtube_refresh_token = refresh_token;
       }
 
+      // Actualizar sesión del cliente
       await supabase.auth.updateUser({
         data: updates
       });
+
+      // Actualizar directamente en base de datos con Admin
+      try {
+        const adminClient = await createAdminClient();
+        await adminClient.auth.admin.updateUserById(user.id, {
+          user_metadata: {
+            ...user.user_metadata,
+            ...updates
+          }
+        });
+        console.log("Tokens de YouTube guardados con éxito en Supabase.");
+      } catch (adminErr) {
+        console.warn("Fallo admin update, usando update básico:", adminErr);
+      }
     }
 
     // Redirigir de vuelta al dashboard con éxito
